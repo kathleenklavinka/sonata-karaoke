@@ -44,7 +44,7 @@ model User {
 model Room {
   id           String   @id @default(uuid())
   name         String
-  description  String   @unique
+  description  String
   capacity     Int
   pricePerHour Int
   isActive     Boolean  @default(true)
