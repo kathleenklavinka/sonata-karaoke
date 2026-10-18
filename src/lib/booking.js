@@ -1,23 +1,26 @@
 import { prisma } from './prisma.js';
 
 export const OPEN_HOUR = 10;
-export const CLOSE_HOUR = 22; 
+export const CLOSE_HOUR = 22;
 export const PAY_WINDOW_MS = 15 * 60 * 1000;
 export const ACTIVE_STATUSES = ['PENDING', 'CONFIRMED'];
 
 // Using UTC internally, but the business logic is in WIB (UTC+7).
 const toWib = (date) => new Date(date.getTime() + 7 * 60 * 60 * 1000);
 
-// Allow booking only in full hours (e.g. 13:00, not 13:30).
 export function getDayRange(dateString) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return null; // year-month-day format
   const start = new Date(`${dateString}T00:00:00+07:00`);
 
   if (Number.isNaN(start.getTime())) return null;
+  // Dates that don't exist (e.g. 2026-02-30) get silently rolled over by JS, so check again.
+  if (toWib(start).toISOString().slice(0, 10) !== dateString) return null;
+
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000); // +24 hours
   return { start, end };
 }
 
+// Allow booking only in full hours (e.g. 13:00, not 13:30).
 export function validateTimeRange(start, end) {
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     return 'Invalid time format';
@@ -49,20 +52,23 @@ export function validateTimeRange(start, end) {
 export const getHours = (booking) =>
   (booking.endTime.getTime() - booking.startTime.getTime()) / (60 * 60 * 1000);
 
-// Booking table doesnt have totalPrice and expiresAt, but we want to return them in the API response.
+export const expiresAtOf = (booking) =>
+  new Date(booking.createdAt.getTime() + PAY_WINDOW_MS);
+
+// Booking table doesn't have totalPrice and expiresAt, but we want to return them in the API response,
 // so we add them here as computed fields.
 export function addComputedFields(booking) {
   return {
     ...booking,
     totalPrice: booking.payment?.amount ?? getHours(booking) * booking.room.pricePerHour,
-    expiresAt: new Date(booking.createdAt.getTime() + PAY_WINDOW_MS),
+    expiresAt: expiresAtOf(booking),
   };
 }
 
-// Booking past 15 min will be expired, and payment will be marked as failed. 
+// Bookings past 15 min will be expired, and their payment will be marked as failed.
 export async function expireOldBookings() {
   const cutoff = new Date(Date.now() - PAY_WINDOW_MS);
-  
+
   // find all bookings that are still PENDING and created before the cutoff time
   const oldBookings = await prisma.booking.findMany({
     where: { status: 'PENDING', createdAt: { lt: cutoff } },
@@ -77,10 +83,20 @@ export async function expireOldBookings() {
       where: { id: { in: ids }, status: 'PENDING' },
       data: { status: 'EXPIRED' },
     }),
-
     prisma.payment.updateMany({
       where: { bookingId: { in: ids }, status: 'PENDING' },
       data: { status: 'FAILED' },
     }),
   ]);
+}
+
+export function makeOrderId(bookingId) {
+  return `SNT${bookingId.replaceAll('-', '')}${Date.now().toString(36)}`;
+}
+
+export function bookingIdFromOrderId(orderId) {
+  const m = /^SNT([0-9a-f]{32})[0-9a-z]+$/.exec(String(orderId));
+  if (!m) return null;
+  const h = m[1];
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
