@@ -132,9 +132,16 @@ roomsEl.addEventListener('click', async (e) => {
 });
 
 // bookings
+function payBadge(b) {
+  return b.status === 'PENDING' && b.payment?.status === 'PAID'
+    ? ' <span class="pill pill-on">Paid</span>'
+    : '';
+}
+
 function adminActions(b) {
   const id = escapeHtml(b.id);
-  const confirmBtn = b.status === 'PENDING'
+  const paid = b.payment?.status === 'PAID';
+  const confirmBtn = b.status === 'PENDING' && paid
     ? `<button class="btn btn-sm" data-status="CONFIRMED" data-id="${id}">Confirm</button>` : '';
   const cancelBtn = ['PENDING', 'CONFIRMED'].includes(b.status)
     ? `<button class="btn btn-outline btn-sm" data-status="CANCELLED" data-id="${id}">Cancel</button>` : '';
@@ -151,7 +158,7 @@ async function loadAdminBookings() {
         <td>${escapeHtml(b.room.name)}</td>
         <td>${escapeHtml(fmtRange(b.startTime, b.endTime))}</td>
         <td>${rupiah(b.totalPrice)}</td>
-        <td>${statusBadge(b.status)}</td>
+        <td>${statusBadge(b.status)}${payBadge(b)}</td>
         <td>${adminActions(b)}</td>
       </tr>`).join('') || '<tr><td colspan="7" class="muted">No bookings yet.</td></tr>';
   } catch (err) {

@@ -12,7 +12,6 @@ const createSchema = z.object({
   endTime: z.string().min(1, 'endTime is required'),
 });
 
-// fields addComputedFields needs to calculate totalPrice
 const roomSelect = { id: true, name: true, pricePerHour: true };
 const paymentSelect = { status: true, amount: true };
 
@@ -44,7 +43,6 @@ router.post('/', requireAuth, async (req, res) => {
         });
         if (conflict) throw new Error('SLOT_CONFLICT');
 
-        // status (PENDING) and createdAt are filled by the schema defaults
         return tx.booking.create({
           data: { userId: req.user.id, roomId: room.id, startTime: start, endTime: end },
           include: { room: { select: roomSelect } },
@@ -56,8 +54,8 @@ router.post('/', requireAuth, async (req, res) => {
   } catch (err) {
     const conflict =
       err.message === 'SLOT_CONFLICT' ||
-      err.code === 'P2034' || // two Serializable transactions collided
-      String(err.message).includes('booking_no_overlap'); // optional database constraint
+      err.code === 'P2034' ||
+      String(err.message).includes('booking_no_overlap');
     if (conflict) return res.status(409).json({ message: 'This time slot overlaps with another booking' });
     throw err;
   }
@@ -73,6 +71,7 @@ router.get('/me', requireAuth, async (req, res) => {
   res.json({ bookings: bookings.map(addComputedFields) });
 });
 
+// customer can only cancel PENDING bookings
 router.patch('/:id/cancel', requireAuth, async (req, res) => {
   const { id } = req.params;
   const booking = await prisma.booking.findUnique({ where: { id } });
@@ -82,12 +81,11 @@ router.patch('/:id/cancel', requireAuth, async (req, res) => {
     return res.status(409).json({ message: 'A booking that has already started cannot be cancelled' });
   }
 
-  // status is checked inside the same query, so it is safe if the webhook arrives at the same time
   const [{ count }] = await prisma.$transaction([
-    prisma.booking.updateMany({ where: { id, status: { in: ACTIVE_STATUSES } }, data: { status: 'CANCELLED' } }),
+    prisma.booking.updateMany({ where: { id, status: 'PENDING' }, data: { status: 'CANCELLED' } }),
     prisma.payment.updateMany({ where: { bookingId: id, status: 'PENDING' }, data: { status: 'FAILED' } }),
   ]);
-  if (count === 0) return res.status(409).json({ message: 'This booking can no longer be cancelled' });
+  if (count === 0) return res.status(409).json({ message: 'Only pending bookings can be cancelled' });
 
   const updated = await prisma.booking.findUnique({ where: { id } });
   res.json({ booking: updated });
@@ -119,6 +117,13 @@ router.patch('/:id/status', requireAuth, requireAdmin, async (req, res) => {
   if (!booking) return res.status(404).json({ message: 'Booking not found' });
   if (!ACTIVE_STATUSES.includes(booking.status)) {
     return res.status(400).json({ message: 'This booking is final, its status cannot be changed' });
+  }
+
+  if (status === 'CONFIRMED') {
+    const payment = await prisma.payment.findUnique({ where: { bookingId: id } });
+    if (payment?.status !== 'PAID') {
+      return res.status(400).json({ message: 'Booking has not been paid yet' });
+    }
   }
 
   const [updated] = await prisma.$transaction([

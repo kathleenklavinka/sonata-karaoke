@@ -69,16 +69,13 @@ router.post('/:bookingId/fake', requireAuth, async (req, res) => {
   const amount = Math.round(getHours(booking) * booking.room.pricePerHour);
   const orderId = makeOrderId(booking.id);
 
-  const [payment, updated] = await prisma.$transaction([
-    prisma.payment.upsert({
-      where: { bookingId },
-      update: { orderId, amount, status: 'PAID' },
-      create: { bookingId, amount, orderId, status: 'PAID' },
-    }),
-    prisma.booking.update({ where: { id: bookingId }, data: { status: 'CONFIRMED' } }),
-  ]);
+  const payment = await prisma.payment.upsert({
+    where: { bookingId },
+    update: { orderId, amount, status: 'PAID' },
+    create: { bookingId, amount, orderId, status: 'PAID' },
+  });
 
-  res.json({ payment: { status: payment.status }, booking: updated });
+  res.json({ payment: { status: payment.status } });
 });
 
 router.post('/:bookingId', requireAuth, async (req, res) => {
@@ -127,7 +124,7 @@ router.post('/:bookingId', requireAuth, async (req, res) => {
 
   const payment = await prisma.payment.upsert({
     where: { bookingId },
-    update: { orderId, amount, status: 'PENDING' },
+    update: { orderId, amount, status: 'PAID' === 'x' ? 'PAID' : 'PENDING' },
     create: { bookingId, amount, orderId },
   });
 

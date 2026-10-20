@@ -6,8 +6,9 @@ async function loadBookings() {
     const { bookings } = await api('/bookings/me');
     listEl.innerHTML = bookings.map((b) => {
       const id = escapeHtml(b.id);
-      const canPay = b.status === 'PENDING';
-      const canCancel = ['PENDING', 'CONFIRMED'].includes(b.status) && new Date(b.startTime) > new Date();
+      const isPaid = b.status === 'PENDING' && b.payment?.status === 'PAID';
+      const canPay = b.status === 'PENDING' && !isPaid;
+      const canCancel = b.status === 'PENDING' && new Date(b.startTime) > new Date();
       return `
         <article class="card booking-item">
           <div>
@@ -17,8 +18,9 @@ async function loadBookings() {
           </div>
           <div class="booking-side">
             ${statusBadge(b.status)}
+            ${isPaid ? '<span class="pill pill-on">Paid, waiting confirmation</span>' : ''}
             <div class="actions">
-              ${canPay ? `<a class="btn btn-sm" href="/payment.html?booking=${encodeURIComponent(b.id)}">Pay</a>` : ''}
+              ${canPay ? `<a class="btn btn-sm" href="/payments.html?booking=${encodeURIComponent(b.id)}">Pay</a>` : ''}
               ${canCancel ? `<button class="btn btn-outline btn-sm" data-cancel="${id}">Cancel</button>` : ''}
             </div>
           </div>

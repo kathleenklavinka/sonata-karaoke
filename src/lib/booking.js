@@ -5,22 +5,19 @@ export const CLOSE_HOUR = 22;
 export const PAY_WINDOW_MS = 15 * 60 * 1000;
 export const ACTIVE_STATUSES = ['PENDING', 'CONFIRMED'];
 
-// Using UTC internally, but the business logic is in WIB (UTC+7).
 const toWib = (date) => new Date(date.getTime() + 7 * 60 * 60 * 1000);
 
 export function getDayRange(dateString) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return null; // year-month-day format
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return null;
   const start = new Date(`${dateString}T00:00:00+07:00`);
 
   if (Number.isNaN(start.getTime())) return null;
-  // Dates that don't exist (e.g. 2026-02-30) get silently rolled over by JS, so check again.
   if (toWib(start).toISOString().slice(0, 10) !== dateString) return null;
 
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000); // +24 hours
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { start, end };
 }
 
-// Allow booking only in full hours (e.g. 13:00, not 13:30).
 export function validateTimeRange(start, end) {
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     return 'Invalid time format';
@@ -55,8 +52,6 @@ export const getHours = (booking) =>
 export const expiresAtOf = (booking) =>
   new Date(booking.createdAt.getTime() + PAY_WINDOW_MS);
 
-// Booking table doesn't have totalPrice and expiresAt, but we want to return them in the API response,
-// so we add them here as computed fields.
 export function addComputedFields(booking) {
   return {
     ...booking,
@@ -65,13 +60,15 @@ export function addComputedFields(booking) {
   };
 }
 
-// Bookings past 15 min will be expired, and their payment will be marked as failed.
 export async function expireOldBookings() {
   const cutoff = new Date(Date.now() - PAY_WINDOW_MS);
 
-  // find all bookings that are still PENDING and created before the cutoff time
   const oldBookings = await prisma.booking.findMany({
-    where: { status: 'PENDING', createdAt: { lt: cutoff } },
+    where: {
+      status: 'PENDING',
+      createdAt: { lt: cutoff },
+      NOT: { payment: { is: { status: 'PAID' } } },
+    },
     select: { id: true },
   });
   if (oldBookings.length === 0) return;

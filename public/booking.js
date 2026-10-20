@@ -82,7 +82,7 @@ $('submitBtn').addEventListener('click', async () => {
         endTime: `${date}T${pad(sel.end)}:00:00+07:00`,
       },
     });
-    window.location.href = `/payment.html?booking=${encodeURIComponent(booking.id)}`;
+    window.location.href = `/payments.html?booking=${encodeURIComponent(booking.id)}`;
   } catch (err) {
     if (err.status === 401) return logout();
     if (err.status === 409) await loadSlots(); // schedule changed, reload
