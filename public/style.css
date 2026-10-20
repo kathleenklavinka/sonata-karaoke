@@ -240,3 +240,18 @@ form.card { display: flex; flex-direction: column; max-width: 560px; margin-bott
   .hero-logo, .orn { animation: none; }
   .js .reveal { opacity: 1; translate: 0 0; scale: 1; transition: none; }
 }
+
+/* navbar auth area: more breathing room */
+#navAuth { gap: 1.4rem; }
+#navAuth a:not(.btn) {
+  font: 600 .82rem var(--display);
+  font-style: italic;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.hello {
+  padding-left: 1.4rem;
+  border-left: 2px solid var(--line);
+  color: var(--white);
+  font-size: .85rem;
+}

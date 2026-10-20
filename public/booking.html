@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book a Room | Sonata Karaoke</title>
+  <link rel="icon" href="/images/logo-sm.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,600;1,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="navbar at-top" id="navbar">
+    <a href="/index.html" class="brand" aria-label="Sonata Karaoke">
+      <img src="/images/logo.png" alt="Sonata" class="brand-logo" />
+    </a>
+
+    <nav class="nav-menu" id="navMenu" aria-label="Main">
+      <a href="/index.html#top" class="nav-anchor">Home</a>
+      <a href="/index.html#about" class="nav-anchor">About</a>
+      <a href="/index.html#rooms" class="nav-anchor">Rooms</a>
+      <a href="/index.html#how" class="nav-anchor">How it works</a>
+      <a href="/index.html#info" class="nav-anchor">Info</a>
+    </nav>
+
+    <div class="nav-right">
+      <span id="navAuth"></span>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main class="section">
+    <header class="section-head">
+      <span class="eyebrow">Booking</span>
+      <h2>Pick a room &amp; hours</h2>
+    </header>
+    <p id="pageMsg" class="muted">Loading room...</p>
+
+    <div id="bookingContent" class="booking-layout" hidden>
+      <section class="card" id="roomInfo"></section>
+
+      <section class="card">
+        <h3>Choose your time</h3>
+        <label class="field-label" for="dateInput">Date</label>
+        <input type="date" id="dateInput" />
+
+        <p class="field-label">Hours</p>
+        <p class="muted" style="font-size:.85rem;margin-bottom:.8rem">Click a start hour, then click the hour next to it to extend your session. Greyed-out hours are already taken.</p>
+        <div id="slotGrid" class="slot-grid"></div>
+
+        <div class="summary">
+          <p id="summaryTime" class="muted">No hours selected</p>
+          <p id="summaryTotal" class="total"></p>
+        </div>
+        <p id="formMsg" class="error"></p>
+        <button type="button" class="btn" id="submitBtn" disabled>Continue to payment</button>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-bar">
+      <img src="/images/logo.png" alt="Sonata" class="footer-logo" />
+      <p>&copy; Sonata Karaoke</p>
+    </div>
+  </footer>
+
+  <script src="/layout.js"></script>
+  <script src="/script.js"></script>
+  <script src="/booking.js"></script>
+</body>
+</html>
