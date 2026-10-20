@@ -6,7 +6,6 @@ import { ACTIVE_STATUSES, getDayRange, expireOldBookings } from '../lib/booking.
 
 const router = Router();
 
-// description is required because the Room model has `description String` (not nullable)
 const roomSchema = z.object({
   name: z.string().trim().min(2, 'Room name must be at least 2 characters'),
   capacity: z.coerce.number().int('Capacity must be a whole number').positive('Capacity must be greater than 0'),
@@ -14,8 +13,17 @@ const roomSchema = z.object({
   description: z.string().trim().min(1, 'Description is required'),
 });
 
+const patchSchema = roomSchema.partial().extend({ isActive: z.boolean().optional() });
+
+// public
 router.get('/', async (req, res) => {
   const rooms = await prisma.room.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+  res.json({ rooms });
+});
+
+// admin
+router.get('/admin/all', requireAuth, requireAdmin, async (req, res) => {
+  const rooms = await prisma.room.findMany({ orderBy: { name: 'asc' } });
   res.json({ rooms });
 });
 
@@ -25,7 +33,6 @@ router.get('/:id', async (req, res) => {
   res.json({ room });
 });
 
-// Hours already taken on one date (public, contains no user data)
 router.get('/:id/slots', async (req, res) => {
   const date = String(req.query.date || '');
   const range = getDayRange(date);
@@ -57,7 +64,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 });
 
 router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
-  const parsed = roomSchema.partial().safeParse(req.body);
+  const parsed = patchSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0].message });
   if (Object.keys(parsed.data).length === 0) return res.status(400).json({ message: 'No changes provided' });
 
@@ -70,7 +77,7 @@ router.patch('/:id', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// "Delete" = deactivate, so old booking history still points to a valid room
+// deactivate
 router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const room = await prisma.room.update({ where: { id: req.params.id }, data: { isActive: false } });

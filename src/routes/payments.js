@@ -8,7 +8,6 @@ const router = Router();
 
 const SNAP_URL = 'https://app.sandbox.midtrans.com/snap/v1/transactions';
 
-// Called by Midtrans (not the browser): no JWT, authenticity is checked with signature_key.
 router.post('/webhook', async (req, res) => {
   const { order_id, status_code, gross_amount, signature_key, transaction_status, fraud_status } = req.body || {};
   if (!order_id || !status_code || !gross_amount || !signature_key) {
@@ -44,7 +43,6 @@ router.post('/webhook', async (req, res) => {
       }
     }
   } else if (payment.orderId === order_id && payment.status !== 'PAID') {
-    // only the latest payment attempt may mark the payment as failed
     if (['expire', 'cancel', 'deny', 'failure'].includes(transaction_status)) {
       await prisma.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } });
     }
@@ -53,7 +51,36 @@ router.post('/webhook', async (req, res) => {
   res.json({ message: 'OK' });
 });
 
-// Called by the customer: request a payment token for one booking
+router.post('/:bookingId/fake', requireAuth, async (req, res) => {
+  const { bookingId } = req.params;
+
+  await expireOldBookings();
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { room: { select: { pricePerHour: true } }, payment: true },
+  });
+  if (!booking) return res.status(404).json({ message: 'Booking not found' });
+  if (booking.userId !== req.user.id) return res.status(403).json({ message: 'This is not your booking' });
+  if (booking.status !== 'PENDING' || booking.payment?.status === 'PAID') {
+    return res.status(409).json({ message: 'This booking cannot be paid (already paid, cancelled, or expired)' });
+  }
+
+  const amount = Math.round(getHours(booking) * booking.room.pricePerHour);
+  const orderId = makeOrderId(booking.id);
+
+  const [payment, updated] = await prisma.$transaction([
+    prisma.payment.upsert({
+      where: { bookingId },
+      update: { orderId, amount, status: 'PAID' },
+      create: { bookingId, amount, orderId, status: 'PAID' },
+    }),
+    prisma.booking.update({ where: { id: bookingId }, data: { status: 'CONFIRMED' } }),
+  ]);
+
+  res.json({ payment: { status: payment.status }, booking: updated });
+});
+
 router.post('/:bookingId', requireAuth, async (req, res) => {
   const { bookingId } = req.params;
   const serverKey = process.env.MIDTRANS_SERVER_KEY;
@@ -75,9 +102,7 @@ router.post('/:bookingId', requireAuth, async (req, res) => {
     return res.status(409).json({ message: 'This booking cannot be paid (already paid, cancelled, or expired)' });
   }
 
-  // amount is calculated on the server from duration and the current room price
   const amount = Math.round(getHours(booking) * booking.room.pricePerHour);
-  // order_id must be unique in Midtrans, so a new one is made for every payment attempt
   const orderId = makeOrderId(booking.id);
   const minutesLeft = Math.max(1, Math.ceil((expiresAtOf(booking).getTime() - Date.now()) / 60000));
 
@@ -100,7 +125,6 @@ router.post('/:bookingId', requireAuth, async (req, res) => {
     return res.status(502).json({ message: 'Failed to create payment transaction, please try again' });
   }
 
-  // one Payment row per booking, only the orderId changes on each attempt
   const payment = await prisma.payment.upsert({
     where: { bookingId },
     update: { orderId, amount, status: 'PENDING' },
