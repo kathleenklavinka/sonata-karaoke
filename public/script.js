@@ -141,8 +141,9 @@ function renderAuth() {
 
 /* rooms */
 const ROOM_IMG = {
-  // 'Room A': '/images/rooms/room-a.jpg',
-  // 'Room B': '/images/rooms/room-b.jpg',
+  'Room Small':  '/images/room-small.png',
+  'Room Medium': '/images/room-medium.png',
+  'Room VIP':    '/images/room-vip.png',
 };
 
 async function loadRooms() {

@@ -129,7 +129,7 @@ body > main { padding-bottom: 54px; }
 .room-card { display: flex; flex-direction: column; gap: .3rem; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
 .room-card::before { content: 'Room photo'; display: grid; place-items: center; aspect-ratio: 16 / 10; margin: -1.4rem -1.4rem 1rem; background: repeating-linear-gradient(135deg, #2a1650 0 14px, #231243 14px 28px); border-bottom: 2px solid var(--purple); color: #7f6aa8; font: 600 .74rem var(--display); letter-spacing: .22em; text-transform: uppercase; }
 .room-card.has-photo::before { display: none; }
-.room-img { width: calc(100% + 2.8rem); aspect-ratio: 16 / 10; object-fit: cover; margin: -1.4rem -1.4rem 1rem; border-bottom: 2px solid var(--purple); }
+.room-img { display: block; width: calc(100% + 2.8rem); max-width: none; flex: none; aspect-ratio: 16 / 10; object-fit: cover; object-position: center; margin: -1.4rem -1.4rem 1rem; border-bottom: 2px solid var(--purple); }
 .room-card:hover { transform: translate(-3px, -3px); box-shadow: 9px 9px 0 var(--purple); }
 .room-card h3 { font-size: 1.4rem; font-style: italic; text-transform: uppercase; }
 .room-card .btn { margin-top: auto; align-self: flex-start; }
