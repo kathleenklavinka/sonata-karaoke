@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "postinstall": "prisma generate",
+    "build": "prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
